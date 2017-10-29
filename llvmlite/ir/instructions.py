@@ -6,7 +6,7 @@ from __future__ import print_function, absolute_import
 
 from . import types
 from .values import (Block, Function, Value, NamedValue, Constant,
-                     MetaDataArgument, MetaDataString, AttributeSet)
+                     MetaDataArgument, MetaDataString, AttributeSet, Undefined)
 from ._utils import _HasMetadata
 
 
@@ -310,7 +310,11 @@ class CompareInstr(Instruction):
             if flag not in self.VALID_FLAG:
                 raise ValueError("invalid flag %r for %s" % (flag, self.OPNAME))
         opname = self.OPNAME
-        super(CompareInstr, self).__init__(parent, types.IntType(1),
+        if isinstance(lhs.type, types.VectorType):
+            typ = types.VectorType(types.IntType(1), lhs.type.count)
+        else:
+            typ = types.IntType(1)
+        super(CompareInstr, self).__init__(parent, typ,
                                            opname, [lhs, rhs], flags=flags,
                                            name=name)
         self.op = op
@@ -502,6 +506,32 @@ class PhiInstr(Instruction):
         self.incomings = [((new if val is old else val), blk)
                           for (val, blk) in self.incomings]
 
+
+class ShuffleVector(Instruction):
+    def __init__(self, parent, vector1, vector2, mask, name=''):
+        if not isinstance(vector1.type, types.VectorType):
+            raise TypeError("vector1 needs to be of VectorType.")
+        if vector2 != Undefined:
+            if vector2.type != vector1.type:
+                raise TypeError("vector2 needs to be " +
+                                "Undefined or of the same type as vector1.")
+        if (not isinstance(mask, Constant) or
+            not isinstance(mask.type, types.VectorType) or
+            mask.type.elementtype != types.IntType(32)):
+            raise TypeError("mask needs to be a constant i32 vector.")
+        typ = types.VectorType(vector1.type.elementtype, mask.type.count)
+        index_range = range(vector1.type.count if vector2 == Undefined else 2 * vector1.type.count)
+        if not all(ii.constant in index_range for ii in mask.constant):
+            raise IndexError("mask values need to be in {0}".format(index_range))
+        super(ShuffleVector, self).__init__(parent, typ, "shufflevector",
+                                           [vector1, vector2, mask], name=name)
+
+    def descr(self, buf):
+        buf.append("shufflevector {0} {1}\n".format(
+                   ", ".join("{0} {1}".format(op.type, op.get_reference())
+                             for op in self.operands),
+                   self._stringify_metadata(leading_comma=True),
+                   ))
 
 class ExtractValue(Instruction):
     def __init__(self, parent, agg, indices, name=''):
