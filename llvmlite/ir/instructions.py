@@ -506,6 +506,40 @@ class PhiInstr(Instruction):
         self.incomings = [((new if val is old else val), blk)
                           for (val, blk) in self.incomings]
 
+class ExtractElement(Instruction):
+    def __init__(self, parent, vector, index, name=''):
+        if not isinstance(vector.type, types.VectorType):
+            raise TypeError("vector needs to be of VectorType.")
+        if not isinstance(index.type, types.IntType):
+            raise TypeError("index needs to be of IntType.")
+        typ = vector.type.elementtype
+        super(ExtractElement, self).__init__(parent, typ, "extractelement",
+                                           [vector, index], name=name)
+
+    def descr(self, buf):
+        operands = ", ".join("{0} {1}".format(
+                   op.type, op.get_reference()) for op in self.operands)
+        buf.append("{opname} {operands}\n".format(
+                   opname = self.opname, operands = operands))
+
+class InsertElement(Instruction):
+    def __init__(self, parent, vector, value, index, name=''):
+        if not isinstance(vector.type, types.VectorType):
+            raise TypeError("vector needs to be of VectorType.")
+        if not value.type == vector.type.elementtype:
+            raise TypeError("value needs to be of type % not %."
+                            % (vector.type.elementtype, value.type))
+        if not isinstance(index.type, types.IntType):
+            raise TypeError("index needs to be of IntType.")
+        typ = vector.type
+        super(InsertElement, self).__init__(parent, typ, "insertelement",
+                                           [vector, value, index], name=name)
+
+    def descr(self, buf):
+        operands = ", ".join("{0} {1}".format(
+                   op.type, op.get_reference()) for op in self.operands)
+        buf.append("{opname} {operands}\n".format(
+                   opname = self.opname, operands = operands))
 
 class ShuffleVector(Instruction):
     def __init__(self, parent, vector1, vector2, mask, name=''):

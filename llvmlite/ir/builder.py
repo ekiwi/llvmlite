@@ -778,13 +778,20 @@ class IRBuilder(object):
 
     def extract_element(self, vector, idx, name=''):
         """
+        Returns the value at position idx.
         """
-        raise NotImplementedError("TODO: implement extract_element")
+        instr = instructions.ExtractElement(self.block, vector, idx, name=name)
+        self._insert(instr)
+        return instr
 
     def insert_element(self, vector, value, idx, name=''):
         """
+        Returns vector with vector[idx] replaced by value.
+        The result id undefined if the idx is larger or euqal the vector length.
         """
-        raise NotImplementedError("TODO: implement insert_element")
+        instr = instructions.InsertElement(self.block, vector, value, idx, name=name)
+        self._insert(instr)
+        return instr
 
     def shuffle_vector(self, vector1, vector2, mask, name=''):
         """
