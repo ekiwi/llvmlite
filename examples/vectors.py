@@ -12,7 +12,7 @@ assert sample_count * sample_t.width == vector_width
 
 vec_t = ir.VectorType(sample_t, sample_count)
 shuffle_t = ir.VectorType(ir.IntType(32), sample_count)
-fun_t = ir.FunctionType(vec_t, (vec_t, vec_t))
+fun_t = ir.FunctionType(ir.IntType(1), (vec_t, vec_t))
 
 # TODO: add actual tests similar to "test_array"
 mask = ir.Constant(vec_t, 0xffff)
@@ -37,8 +37,15 @@ prev_high = builder.shuffle_vector(last_chunk, high, shift_one_into_past, name="
 prev_low = builder.xor(prev_high, mask, name="prev_low")
 falling = builder.and_(prev_low, high, name="falling")
 rising = builder.and_(prev_high, low, name="rising")
-any_falling = builder.not_(builder.icmp_signed('==',falling, zero))
-builder.ret(falling)
+any_falling_in_sample = builder.not_(builder.icmp_signed('==',falling, zero))
+any_falling_in_sample = builder.insert_element(any_falling_in_sample,
+    ir.Constant(ir.IntType(1), 0), ir.Constant(ir.IntType(8),0))
+any_falling = builder.or_(
+    builder.extract_element(any_falling_in_sample, ir.Constant(ir.IntType(8),(0))),
+    builder.extract_element(any_falling_in_sample, ir.Constant(ir.IntType(8),(1))))
+
+
+builder.ret(any_falling)
 
 # Print the module IR
 #import pdb; pdb.set_trace()
